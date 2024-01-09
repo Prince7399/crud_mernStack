@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Button, Table, Modal } from 'react-bootstrap';
 import './css/style.css'
 import { axiosInstance } from './utils';
+import { toast } from 'react-toastify';
 
 const App = () => {
   const [modalShow, setModalShow] = useState(false);
@@ -13,6 +14,11 @@ const App = () => {
   });
   const [editableUser, setEditableUser] = useState({});
   const [isEdit, setIsEdit] = useState(false);
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    age: ''
+  })
 
   useEffect(() => {
     getAllUsersData();
@@ -34,13 +40,21 @@ const App = () => {
       let response = await axiosInstance('post', 'createUser', formData);
       if (response?.status === 200) {
         setUsers([...users, response?.data])
+        toast.success('User Created Successfully')
+        setModalShow(false);
+        setFormData({
+          name: '',
+          email: '',
+          age: ''
+        })
+        setErrors({
+          name: '',
+          email: '',
+          age: ''
+        })
+      } else if (response?.status === 201) {
+        toast.error(response?.data?.message);
       }
-      setModalShow(false);
-      setFormData({
-        name: '',
-        email: '',
-        age: ''
-      })
     } catch (error) {
       console.error(error);
     }
@@ -52,15 +66,24 @@ const App = () => {
       let response = await axiosInstance('put', `updateUser?slug=${editableUser?.slug}`, updatedUser);
       if (response?.status === 200) {
         setUsers((prev) => prev.map(user => user.slug === editableUser.slug ? updatedUser : user));
+        toast.success('User Updated Successfully')
+        setModalShow(false);
+        setFormData({
+          name: '',
+          email: '',
+          age: ''
+        })
+        setErrors({
+          name: '',
+          email: '',
+          age: ''
+        })
+        setIsEdit(false);
+        setEditableUser({});
+      } else if (response?.status === 201) {
+        toast.error(response?.data?.message);
       }
-      setModalShow(false);
-      setFormData({
-        name: '',
-        email: '',
-        age: ''
-      })
-      setIsEdit(false);
-      setEditableUser({});
+
     } catch (error) {
       console.error(error);
     }
@@ -71,17 +94,36 @@ const App = () => {
       let response = await axiosInstance('delete', `deleteUser?slug=${user?.slug}`);
       if (response?.status === 200) {
         setUsers(prev => prev.filter(userData => userData?.slug !== user?.slug))
+        toast.success('User Deleted Successfully')
       }
     } catch (error) {
       console.error(error);
     }
   }
 
+  const isValidate = () => {
+    let error = {};
+    if (formData?.name === '') {
+      setErrors((prev) => ({ ...prev, name: 'Please enter Name' }))
+      error['name'] = 'name'
+    }
+    if (formData?.email === '') {
+      setErrors((prev) => ({ ...prev, email: 'Please enter Email' }))
+      error['email'] = 'email'
+    }
+    if (formData?.age === '') {
+      setErrors((prev) => ({ ...prev, age: 'Please enter Age' }))
+      error['age'] = 'age'
+    }
+    return Object.keys(error)?.length
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isEdit) updateUser();
-    else createUser();
-
+    if (!isValidate()) {
+      if (isEdit) updateUser();
+      else createUser();
+    }
   }
 
   const handleClose = () => {
@@ -91,6 +133,11 @@ const App = () => {
       email: '',
       age: ''
     });
+    setErrors({
+      name: '',
+      email: '',
+      age: ''
+    })
     setIsEdit(false);
     setEditableUser({});
   }
@@ -99,6 +146,17 @@ const App = () => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value
+    }))
+    setErrors((prev) => ({
+      ...prev,
+      [e.target.name]: ''
+    }))
+  }
+
+  const handleBlur = (e) => {
+    setErrors((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value?.length ? '' : `Please enter ${e.target.name.slice(0, 1).toUpperCase().concat(e.target.name.slice(1))}`
     }))
   }
 
@@ -143,7 +201,11 @@ const App = () => {
                       </td>
                     </tr>
                   ))
-                  : null}
+                  : <tr>
+                    <td colSpan={4}>
+                      <div className='text-center'>No Data Found</div>
+                    </td>
+                  </tr>}
               </tbody>
             </Table>
           </div>
@@ -162,15 +224,18 @@ const App = () => {
               <form onSubmit={(e) => handleSubmit(e)}>
                 <div className="mb-3">
                   <label className="form-label">Name</label>
-                  <input type="text" value={formData.name} className="form-control" name='name' onChange={(e) => handleChange(e)} />
+                  <input type="text" value={formData.name} className="form-control" name='name' onChange={(e) => handleChange(e)} onBlur={(e) => handleBlur(e)} />
+                  <p className='error'>{errors?.name}</p>
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Email address</label>
-                  <input type="email" value={formData.email} className="form-control" name='email' onChange={(e) => handleChange(e)} />
+                  <input type="email" value={formData.email} className="form-control" name='email' onChange={(e) => handleChange(e)} onBlur={(e) => handleBlur(e)} />
+                  <p className='error'>{errors?.email}</p>
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Age</label>
-                  <input type="text" value={formData.age} className="form-control" name='age' onChange={(e) => handleChange(e)} />
+                  <input type="text" value={formData.age} className="form-control" name='age' onChange={(e) => handleChange(e)} onBlur={(e) => handleBlur(e)} />
+                  <p className='error'>{errors?.age}</p>
                 </div>
                 <div className="text-end">
                   <button type="submit" className="btn btn-success">Submit</button>

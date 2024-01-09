@@ -39,32 +39,46 @@ app.get('/getAllusers', async (req, res) => {
 app.post('/createUser', async (req, res) => {
     try {
         let { name, email, age } = req.body;
-        const newUser = new users({
-            name: name,
-            email: email,
-            age: age,
-            slug: new Date().getTime()
-        });
 
-        newUser.save()
-            .then(item => {
-                console.log('Item saved to database');
-            }).catch(error => {
-                console.log('Unable to save to database');
-            })
-        res.send(newUser)
+        let userEmailExist = await users.findOne({ email: email });
+        if (userEmailExist) {
+            res.status(201).send({ message: 'User email already exist' })
+        } else {
+            const newUser = new users({
+                name: name,
+                email: email,
+                age: age,
+                slug: new Date().getTime()
+            });
+
+            newUser.save()
+                .then(item => {
+                    console.log('Item saved to database');
+                }).catch(error => {
+                    console.log('Unable to save to database');
+                })
+            res.send(newUser)
+        }
     } catch (error) {
-        console.error(error);
+        res.status(500).send(error)
     }
 });
 
 app.put('/updateUser', async (req, res) => {
     try {
-        await users.findOneAndUpdate(req.query, req.body)
-            .then(() => res.send({ message: 'User Updated Successfully' }))
-            .catch((err) => console.log(err));
+        let userEmailExist = await users.findOne({
+            email: req.body.email,
+            slug: { $ne: req.body.slug }
+        });
+        if (userEmailExist) {
+            res.status(201).send({ message: 'User email already exist' })
+        } else {
+            await users.findOneAndUpdate(req.query, req.body)
+                .then(() => res.send({ message: 'User Updated Successfully' }))
+                .catch((err) => console.log(err));
+        }
     } catch (error) {
-        console.log(error);
+        res.status(500).send(error)
     }
 });
 
@@ -74,7 +88,6 @@ app.delete('/deleteUser', async (req, res) => {
             then(() => { res.status(200).send({ message: 'User Deleted Successfully' }) })
             .catch((error) => console.log(error))
     } catch (error) {
-
-        console.log(error);
+        res.status(500).send(error)
     }
 })
